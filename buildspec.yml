@@ -1,0 +1,39 @@
+version: 0.2
+env:
+ variables:
+   IMAGE_REPO_NAME: node-project:latest
+ parameter-store:
+  AWS_ACCOUNT_ID: ACCOUNT_ID
+  
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+    commands:
+      - echo THIS IS OUR id $AWS_ACCOUNT_ID
+  pre_build:
+    commands:
+      - echo Installing source NPM dependencies....
+      - npm install
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Compiling the Node.js code
+      - echo Build completed on `date`
+      #authenticate aws ECR
+      - echo authenticate ECR
+      - aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com
+      - IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/$IMAGE_REPO_NAME"
+      - echo  docker  start Building image 
+      - docker build -t node-project .
+      - docker tag node-project:latest $IMAGE_URI
+  post_build:
+    commands:
+      - echo pushing  
+      - echo  the is the image $IMAGE_URI
+      - docker push $IMAGE_URI
+      - printf '[{"name":"node-project","imageUri":"%s"}]' "$IMAGE_URI" > imagedefinitions.json
+      - echo imagedefinitions.json
+artifacts:
+   files:
+    - imagedefinitions.json
